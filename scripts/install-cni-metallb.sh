@@ -14,11 +14,11 @@ fi
 case "$TARGET" in
   dev)
     CLUSTER_NAME="dev-cluster"
-    METALLB_POOL="$ROOT_DIR/dev/kind/metallb-ippool.yaml"
+    METALLB_POOL="$ROOT_DIR/env/dev/metallb-ippool.yaml"
     ;;
   pro)
     CLUSTER_NAME="pro-cluster"
-    METALLB_POOL="$ROOT_DIR/pro/kind/metallb-ippool.yaml"
+    METALLB_POOL="$ROOT_DIR/env/pro/metallb-ippool.yaml"
     ;;
   *)
     echo "ERROR: Target debe ser 'dev' o 'pro', recibido: '$TARGET'"

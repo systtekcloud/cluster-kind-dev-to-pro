@@ -55,17 +55,17 @@ check_docker
 case "$TARGET" in
   dev)
     check_ports "dev-cluster" "${DEV_PORTS[@]}"
-    create_cluster "dev-cluster" "$ROOT_DIR/dev/kind/dev-cluster.yaml"
+    create_cluster "dev-cluster" "$ROOT_DIR/env/dev/dev-cluster.yaml"
     ;;
   pro)
     check_ports "pro-cluster" "${PRO_PORTS[@]}"
-    create_cluster "pro-cluster" "$ROOT_DIR/pro/kind/pro-cluster.yaml"
+    create_cluster "pro-cluster" "$ROOT_DIR/env/pro/pro-cluster.yaml"
     ;;
   all)
     check_ports "dev-cluster" "${DEV_PORTS[@]}"
     check_ports "pro-cluster" "${PRO_PORTS[@]}"
-    create_cluster "dev-cluster" "$ROOT_DIR/dev/kind/dev-cluster.yaml"
-    create_cluster "pro-cluster" "$ROOT_DIR/pro/kind/pro-cluster.yaml"
+    create_cluster "dev-cluster" "$ROOT_DIR/env/dev/dev-cluster.yaml"
+    create_cluster "pro-cluster" "$ROOT_DIR/env/pro/pro-cluster.yaml"
     ;;
   *)
     echo "Uso: $0 [dev|pro|all]"
