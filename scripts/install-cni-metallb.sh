@@ -70,17 +70,18 @@ echo ">>> Instalando Cilium en $CLUSTER_NAME..."
 # kubeProxyReplacement=true: Cilium reemplaza kube-proxy completamente
 # k8sServiceHost/Port: dirección del API server dentro del cluster kind
 cilium install \
+  --context "$CONTEXT" \
   --set kubeProxyReplacement=true \
   --set k8sServiceHost="${CLUSTER_NAME}-control-plane" \
   --set k8sServicePort=6443
 
 echo ">>> Esperando a que Cilium esté ready..."
-cilium status --wait
+cilium status --wait --context "$CONTEXT"
 
 # ─── MetalLB ──────────────────────────────────────────────────────────────────
 
 echo ">>> Instalando MetalLB via Helm..."
-helm repo add metallb https://metallb.github.io/metallb 2>/dev/null || helm repo update metallb
+helm repo add metallb https://metallb.github.io/metallb 2>/dev/null || true
 helm repo update
 
 helm upgrade --install metallb metallb/metallb \
@@ -110,7 +111,7 @@ kubectl get nodes -o wide
 
 echo ""
 echo "--- Cilium ---"
-cilium status
+cilium status --context "$CONTEXT"
 
 echo ""
 echo "--- MetalLB ---"
