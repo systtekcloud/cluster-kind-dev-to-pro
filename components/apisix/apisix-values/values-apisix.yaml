@@ -1,4 +1,4 @@
-# values-apisix-lab.yaml
+# values-apisix.yaml
 # Overrides mínimos para un lab en kind con gateway + admin UI + ingress-controller
 
 service:

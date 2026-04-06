@@ -87,7 +87,7 @@ while [[ -z "$EXTERNAL_IP" && $ELAPSED -lt $TIMEOUT ]]; do
 done
 
 if [[ -z "$EXTERNAL_IP" ]]; then
-  echo "ERROR: No se asignó EXTERNAL-IP en ${TIMEOUT}s. Verifica MetalLB con: kubectl get svc -n $NAMESPACE"
+  echo "ERROR: No se asignó EXTERNAL-IP en ${TIMEOUT}s. Verifica MetalLB con: kubectl get svc -n $NAMESPACE --context $CONTEXT"
   exit 1
 fi
 
