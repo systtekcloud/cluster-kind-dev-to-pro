@@ -24,7 +24,7 @@ check_ports() {
   local occupied=()
 
   for port in "${ports[@]}"; do
-    if ss -tlnp "sport = :$port" 2>/dev/null | grep -q LISTEN; then
+    if ss -tlnp 2>/dev/null | grep -q ":${port} "; then
       occupied+=("$port")
     fi
   done
