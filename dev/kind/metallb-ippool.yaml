@@ -1,14 +1,19 @@
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
 metadata:
-  name: first-pool
+  # Nombre específico de entorno para evitar conflictos en configuraciones multicluster futuras
+  name: dev-pool
   namespace: metallb-system
 spec:
   addresses:
-    - 172.18.0.120-172.18.0.130 # Cambia esto según tu red local
+    # Rango reservado para dev. Verificar con: docker network inspect kind | grep -A5 IPAM
+    - 172.18.0.120-172.18.0.130
 ---
 apiVersion: metallb.io/v1beta1
 kind: L2Advertisement
 metadata:
-  name: first-advertisement
+  name: dev-l2-advertisement
   namespace: metallb-system
+spec:
+  ipAddressPools:
+    - dev-pool
