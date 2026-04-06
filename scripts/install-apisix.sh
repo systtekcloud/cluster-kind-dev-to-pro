@@ -78,7 +78,6 @@ EXTERNAL_IP=""
 while [[ -z "$EXTERNAL_IP" && $ELAPSED -lt $TIMEOUT ]]; do
   EXTERNAL_IP=$(kubectl get svc apisix-gateway \
     -n "$NAMESPACE" \
-    --context "$CONTEXT" \
     -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)
   if [[ -z "$EXTERNAL_IP" ]]; then
     sleep 5
@@ -88,17 +87,18 @@ while [[ -z "$EXTERNAL_IP" && $ELAPSED -lt $TIMEOUT ]]; do
 done
 
 if [[ -z "$EXTERNAL_IP" ]]; then
-  echo "WARN: No se asignó EXTERNAL-IP en ${TIMEOUT}s. Verifica MetalLB con: kubectl get svc -n $NAMESPACE"
-else
-  echo ""
-  echo "OK: APISIX instalado en $CLUSTER_NAME"
-  echo ""
-  echo "  EXTERNAL-IP asignada: $EXTERNAL_IP"
-  echo ""
-  echo "  Prueba de conectividad:"
-  echo "    curl -i http://${EXTERNAL_IP}/"
-  echo ""
-  echo "  Para desplegar httpbin de demo:"
-  echo "    kubectl apply -f components/ingress/apisix/crds/httpbin/"
-  echo "    curl -H 'Host: httpbin.local' http://${EXTERNAL_IP}/get"
+  echo "ERROR: No se asignó EXTERNAL-IP en ${TIMEOUT}s. Verifica MetalLB con: kubectl get svc -n $NAMESPACE"
+  exit 1
 fi
+
+echo ""
+echo "OK: APISIX instalado en $CLUSTER_NAME"
+echo ""
+echo "  EXTERNAL-IP asignada: $EXTERNAL_IP"
+echo ""
+echo "  Prueba de conectividad:"
+echo "    curl -i http://${EXTERNAL_IP}/"
+echo ""
+echo "  Para desplegar httpbin de demo:"
+echo "    kubectl apply -f components/ingress/apisix/crds/httpbin/"
+echo "    curl -H 'Host: httpbin.local' http://${EXTERNAL_IP}/get"
