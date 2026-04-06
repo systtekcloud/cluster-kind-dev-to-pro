@@ -1,0 +1,19 @@
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  # Nombre específico de entorno para evitar conflictos en configuraciones multicluster futuras
+  name: pro-pool
+  namespace: metallb-system
+spec:
+  addresses:
+    # Rango reservado para pro. Verificar con: docker network inspect kind | grep -A5 IPAM
+    - 172.18.0.131-172.18.0.140
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: pro-l2-advertisement
+  namespace: metallb-system
+spec:
+  ipAddressPools:
+    - pro-pool
