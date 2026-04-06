@@ -11,7 +11,7 @@ networking:
   apiServerAddress: "0.0.0.0"
   # CNI desactivado: se instala Cilium manualmente post-creación
   disableDefaultCNI: true
-  apiServerPort: 6451
+  apiServerPort: 6445
   # CIDRs separados de dev (10.10/10.20) para facilitar Istio multicluster futuro
   podSubnet: "10.30.0.0/16"
   serviceSubnet: "10.40.0.0/16"

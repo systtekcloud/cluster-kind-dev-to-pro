@@ -2,7 +2,7 @@ apiVersion: apisix.apache.org/v2
 kind: ApisixUpstream
 metadata:
   name: httpbin
-  namespace: demo-apis
+  namespace: apisix-apis
 spec:
   loadbalancer:
     type: ewma

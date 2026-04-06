@@ -2,7 +2,7 @@ apiVersion: apisix.apache.org/v2
 kind: ApisixRoute
 metadata:
   name: httpbin-route
-  namespace: demo-apis
+  namespace: apisix-apis
 spec:
   ingressClassName: apisix
   http:

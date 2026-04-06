@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: demo-apis
+  name: apisix-apis
   labels:
     istio-injection: disabled
 ---
@@ -9,7 +9,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: httpbin
-  namespace: demo-apis
+  namespace: apisix-apis
   labels:
     app: httpbin
 spec:
@@ -46,7 +46,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: httpbin
-  namespace: demo-apis
+  namespace: apisix-apis
 spec:
   selector:
     app: httpbin
