@@ -48,7 +48,7 @@ ingress-controller:
     createDefault: true
     controlPlane:
       endpoints:
-        - http://apisix-admin.apisix-ingress.svc.cluster.local:9180
+        - http://apisix-admin.ingress-apisix.svc.cluster.local:9180
       auth:
         type: AdminKey
         adminKey:
