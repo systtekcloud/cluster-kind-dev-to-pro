@@ -1,0 +1,45 @@
+apiVersion: apisix.apache.org/v2
+kind: ApisixUpstream
+metadata:
+  namespace: ingress-apisix
+  name: httpbin-external-domain
+spec:
+  ingressClassName: apisix
+  scheme: https
+  passHost: node
+  externalNodes:
+    - type: Domain
+      name: httpbin.org
+      weight: 1
+      port: 443
+---
+apiVersion: apisix.apache.org/v2
+kind: ApisixUpstream
+metadata:
+  namespace: ingress-apisix
+  name: mockapi7-external-domain
+spec:
+  ingressClassName: apisix
+  scheme: https
+  passHost: node
+  externalNodes:
+    - type: Domain
+      name: mock.api7.ai
+      weight: 1
+      port: 443
+---
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  namespace: ingress-apisix
+  name: lb-route
+spec:
+  ingressClassName: apisix
+  http:
+    - name: lb-route
+      match:
+        paths:
+          - /headers
+      upstreams:
+        - name: httpbin-external-domain
+        - name: mockapi7-external-domain

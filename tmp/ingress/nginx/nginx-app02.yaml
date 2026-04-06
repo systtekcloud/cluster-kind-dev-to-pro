@@ -1,0 +1,57 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-app02
+  namespace: frontend-ns
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx-app02
+  template:
+    metadata:
+      labels:
+        app: nginx-app02
+    spec:
+      containers:
+      - name: nginx-app02
+        image: nginx
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: nginx-app02-config
+          mountPath: /usr/share/nginx/html
+      volumes:
+      - name: nginx-app02-config
+        configMap:
+          name: nginx-app02-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-app02-service
+  namespace: frontend-ns
+spec:
+  selector:
+    app: nginx-app02
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-app02-config
+  namespace: frontend-ns
+data:
+  index.html: |
+    <html>
+      <head><title>Bienvenido</title></head>
+      <body style="text-align: center;">
+        <h1>🚀 Bienvenido a mi Microservicio 02 🚀</h1>
+        <p>Esta es la página por defecto para myapps.local/path02</p>
+      </body>
+    </html>

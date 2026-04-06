@@ -1,0 +1,41 @@
+grafana:
+  envFromSecret: grafana-oidc
+
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      kubernetes.io/ingress.class: nginx
+    hosts:
+      - grafana.local
+    path: /
+    pathType: Prefix
+
+  grafana.ini:
+    server:
+      # Define how Grafana is accessed externally
+      # You may need to adjust this based on your ingress or NodePort setup
+      root_url: "http://grafana.local/"
+    auth:
+      disable_login_form: false
+    auth.generic_oauth:
+      verbose_logging: true
+      enabled: true
+      name: Keycloak
+      allow_sign_up: true
+
+      # 2) NO poner el secreto en claro; usar variables
+      client_id: ${GF_AUTH_GENERIC_OAUTH_CLIENT_ID}
+      client_secret: ${GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET}
+
+      scopes: openid email profile
+
+      auth_url: http://keycloak.local/realms/systtekcloud/protocol/openid-connect/auth
+      token_url: http://kc-keycloak.keycloak.svc.cluster.local:8080/realms/systtekcloud/protocol/openid-connect/token
+      api_url: http://kc-keycloak.keycloak.svc.cluster.local:8080/realms/systtekcloud/protocol/openid-connect/userinfo
+      
+      role_attribute_path: "contains(realm_access.roles[*], 'admin') && 'Admin' || 'Viewer'"
+      
+      login_attribute_path: preferred_username
+      name_attribute_path: name
+      email_attribute_path: email

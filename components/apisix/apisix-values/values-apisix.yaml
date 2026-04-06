@@ -1,0 +1,55 @@
+# values-apisix-lab.yaml
+# Overrides mínimos para un lab en kind con gateway + admin UI + ingress-controller
+
+service:
+  type: LoadBalancer
+  externalTrafficPolicy: Cluster
+  http:
+    enabled: true
+    servicePort: 80
+    containerPort: 9080
+    # opcionalmente puedes fijar un nodePort concreto:
+    # nodePort: 30080
+  tls:
+    servicePort: 443
+    # nodePort: 30443
+  stream:
+    enabled: true
+    tcp: [9100]
+    udp: [9200]
+
+metrics:
+  serviceMonitor:
+    enabled: true
+
+apisix:
+  admin:
+    enabled: true
+    enable_admin_ui: true
+    allow:
+      ipList:
+        - 0.0.0.0/0
+    ingress:
+      enabled: false
+
+  prometheus:
+    enabled: true
+
+# 4) Ingress Controller embebido en el propio chart
+ingress-controller:
+  enabled: true
+  config:
+    kubernetes:
+      ingressClass: apisix
+  apisix:
+    adminService:
+      serviceNamespace: ingress-apisix
+  gatewayProxy:
+    createDefault: true
+    controlPlane:
+      endpoints:
+        - http://apisix-admin.apisix-ingress.svc.cluster.local:9180
+      auth:
+        type: AdminKey
+        adminKey:
+          value: edd1c9f034335f136f87ad84b625c8f1

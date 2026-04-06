@@ -1,0 +1,71 @@
+# values-keycloak-local.yaml
+# 1. Credenciales admin
+keycloak:
+  adminUser: admin
+  existingSecret: kc-keycloak-admin-credentials
+  secretKeys:
+    adminPasswordKey: admin-password
+  
+
+  production: false
+  httpEnabled: true
+  httpPort: 8080
+  hostname: "keycloak.local"
+  proxyHeaders: forwarded
+
+# 2. Configuración de base de datos
+postgres:
+  enabled: false            # si el chart incluye PostgreSQL embebido, lo deshabilitamos
+
+database: 
+  type: postgres            # algunos charts usan "postgresql"
+  host: kc-postgres-postgresql.keycloak.svc.cluster.local
+  port: "5432"
+  name: keycloak
+  # username: keycloak
+  # password: keycloakpass
+  existingSecret: kc-keycloak-db
+  secretKeys:
+    passwordKey: db-password
+    usernameKey: db-username
+
+# 3. Ingress (si quieres acceder por hostname en k3d)
+ingress:
+  enabled: true
+  className: nginx            # o el ingressClass real si despliegas NGINX
+  hosts: 
+    - host: keycloak.local
+      paths:
+        - path: /
+          pathType: Prefix
+  # annotations:
+  #   kubernetes.io/ingress.class: nginx           # en local puedes ir sin TLS o con cert self-signed
+
+# 5. Recursos / réplicas
+replicaCount: 1
+
+# resources:
+#   requests:
+#     cpu: 500m
+#     memory: 1Gi
+#   limits:
+#     cpu: 1Gi
+#     memory: 2Gi
+
+# 6. Persistencia
+persistence:
+  enabled: true
+  size: 5Gi
+  storageClass: "standard"
+
+# 7. Startup probes / timeouts (Keycloak puede tardar en arrancar)
+startupProbe:
+  enabled: true
+  httpGet:
+    path: /realms/master
+    port: http
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  failureThreshold: 30
+
+

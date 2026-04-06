@@ -1,0 +1,15 @@
+apiVersion: apisix.apache.org/v1alpha1
+kind: GatewayProxy
+metadata:
+  namespace: ingress-apisix
+  name: apisix-config
+spec:
+  provider:
+    type: ControlPlane
+    controlPlane:
+      endpoints:
+        - http://127.0.0.1:9180
+      auth:
+        type: AdminKey
+        adminKey:
+          value: edd1c9f034335f136f87ad84b625c8f1

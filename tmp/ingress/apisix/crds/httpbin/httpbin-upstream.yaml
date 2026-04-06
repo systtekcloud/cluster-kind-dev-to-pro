@@ -1,0 +1,16 @@
+apiVersion: apisix.apache.org/v2
+kind: ApisixUpstream
+metadata:
+  name: httpbin
+  namespace: demo-apis
+spec:
+  loadbalancer:
+    type: ewma
+  timeout:
+    connect: 5s
+    read: 10s
+    send: 10s
+  retries: 3
+  passHost: rewrite
+  upstreamHost: httpbin.local
+  # aquí más adelante podemos añadir healthCheck, subsets, etc.

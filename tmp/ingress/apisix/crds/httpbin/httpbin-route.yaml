@@ -1,0 +1,25 @@
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: httpbin-route
+  namespace: demo-apis
+spec:
+  ingressClassName: apisix
+  http:
+    - name: httpbin-main
+      match:
+        hosts:
+          - httpbin.local
+        paths:
+          - "/*"
+      backends:
+        - serviceName: httpbin
+          servicePort: 80
+      plugins:
+        - name: limit-count
+          enable: true
+          config:
+            count: 5
+            time_window: 60
+            key: remote_addr
+            rejected_code: 429
