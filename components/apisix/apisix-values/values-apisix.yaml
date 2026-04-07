@@ -20,7 +20,7 @@ service:
 
 metrics:
   serviceMonitor:
-    enabled: true
+    enabled: false
 
 apisix:
   admin:
