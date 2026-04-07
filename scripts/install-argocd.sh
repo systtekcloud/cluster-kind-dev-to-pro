@@ -14,9 +14,11 @@ fi
 case "$TARGET" in
   dev)
     CLUSTER_NAME="dev-cluster"
+    VALUES_FILE="$ROOT_DIR/components/argocd/values-local.yaml"
     ;;
   pro)
     CLUSTER_NAME="pro-cluster"
+    VALUES_FILE="$ROOT_DIR/components/argocd/values-ha.yaml"
     ;;
   *)
     echo "ERROR: Target debe ser 'dev' o 'pro', recibido: '$TARGET'"
@@ -25,7 +27,6 @@ case "$TARGET" in
 esac
 
 CONTEXT="kind-${CLUSTER_NAME}"
-VALUES_FILE="$ROOT_DIR/components/argocd/values-local.yaml"
 NAMESPACE="argocd"
 
 # Verificar que el cluster existe
