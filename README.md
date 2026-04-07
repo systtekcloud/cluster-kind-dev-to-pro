@@ -174,25 +174,45 @@ curl -H "Host: httpbin.local" http://${EXTERNAL_IP}/get
 
 ```
 .
-├── dev/kind/
-│   ├── dev-cluster.yaml            # Configuración kind del cluster dev
-│   └── metallb-ippool.yaml         # Pool de IPs MetalLB dev (172.18.0.120–130)
-├── pro/kind/
-│   ├── pro-cluster.yaml            # Configuración kind del cluster pro
-│   └── metallb-ippool.yaml         # Pool de IPs MetalLB pro (172.18.0.131–140)
+├── env/
+│   ├── dev/
+│   │   ├── dev-cluster.yaml        # Configuración kind del cluster dev
+│   │   └── metallb-ippool.yaml     # Pool MetalLB dev (172.18.0.120–130)
+│   └── pro/
+│       ├── pro-cluster.yaml        # Configuración kind del cluster pro
+│       └── metallb-ippool.yaml     # Pool MetalLB pro (172.18.0.131–140)
+│
 ├── scripts/
 │   ├── create-clusters.sh          # Crea clusters (verifica Docker y puertos)
 │   ├── install-cni-metallb.sh      # Instala Cilium + MetalLB
 │   ├── install-apisix.sh           # Instala APISIX ingress controller
 │   ├── delete-clusters.sh          # Elimina clusters y limpia kubeconfig
 │   └── status.sh                   # Estado de nodos, CNI, LB e IPs
+│
 ├── components/
 │   ├── apisix/
-│   │   └── apisix-values/          # Valores Helm para APISIX
+│   │   ├── apisix-values/          # Valores Helm APISIX
+│   │   └── apisix-helm-chart/      # Chart local (vendor)
 │   ├── ingress/
-│   │   └── apisix/crds/            # ApisixRoute, ApisixUpstream (httpbin demo)
-│   └── argocd/                     # (pendiente) Valores Helm para ArgoCD
-└── docs/plans/                     # Documentos de diseño e implementación
+│   │   ├── apisix/
+│   │   │   ├── config/             # apisix-config.yaml (gitignored — contiene claves)
+│   │   │   └── crds/
+│   │   │       ├── httpbin/        # ApisixRoute + ApisixUpstream + Deployment httpbin
+│   │   │       └── lb-external/    # Rutas a servicios externos
+│   │   └── nginx/                  # Manifests nginx ingress (referencia/labs)
+│   ├── apps/
+│   │   ├── curl/                   # Pod curl para pruebas de conectividad
+│   │   ├── httpbin/                # httpbin + fortio (carga y latencia)
+│   │   └── sleep/                  # Pod sleep para pruebas de malla
+│   ├── argocd/                     # Valores Helm ArgoCD
+│   └── keycloak-k8s-oidc/          # Lab autenticación: Keycloak + OIDC + Prometheus
+│       ├── keycloak-helm/
+│       ├── prometheus-helm/
+│       └── postman/                # Colección Postman para flujos OIDC
+│
+└── docs/
+    ├── plans/                      # Documentos de diseño e implementación
+    └── references/                 # Charts y documentación de referencia
 ```
 
 ---
