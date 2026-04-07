@@ -39,17 +39,17 @@ Plataforma de laboratorio con dos clusters kind locales para desarrollo, labs de
 
 ### CIDRs
 
-| Cluster | API Port | Pod CIDR     | Svc CIDR     | MetalLB Pool     |
-|---------|----------|--------------|--------------|------------------|
-| dev     | 6450     | 10.10.0.0/16 | 10.20.0.0/16 | 172.18.0.120–130 |
-| pro     | 6451     | 10.30.0.0/16 | 10.40.0.0/16 | 172.18.0.131–140 |
+| Cluster | API Port | Pod CIDR     | Svc CIDR     | MetalLB Pool      |
+| ------- | -------- | ------------ | ------------ | ----------------- |
+| dev     | 6440     | 10.10.0.0/16 | 10.20.0.0/16 | 172.18.0.120–130 |
+| pro     | 6445     | 10.30.0.0/16 | 10.40.0.0/16 | 172.18.0.131–140 |
 
 Los CIDRs están intencionalmente separados — requisito para Istio multicluster.
 
 ### hostPorts (fallback NodePort cuando MetalLB no es accesible)
 
 | Worker | :80 dev | :80 pro | :443 dev | :443 pro | :2222 dev | :2222 pro |
-|--------|---------|---------|----------|----------|-----------|-----------|
+| ------ | ------- | ------- | -------- | -------- | --------- | --------- |
 | w1     | 9090    | 9093    | 8440     | 8450     | 2030      | 2130      |
 | w2     | 9091    | 9094    | 8441     | 8451     | 2031      | 2131      |
 | w3     | 9092    | 9095    | 8442     | 8452     | 2032      | 2132      |
@@ -62,50 +62,50 @@ Los CIDRs están intencionalmente separados — requisito para Istio multicluste
 
 ### Implementado
 
-| Componente | Namespace | Función |
-|------------|-----------|---------|
-| **Cilium** | `kube-system` | CNI + reemplazo de kube-proxy |
-| **MetalLB** | `metallb-system` | LoadBalancer L2 para kind |
-| **APISIX** | `ingress-apisix` | Ingress norte-sur, API gateway, plugins |
+| Componente        | Namespace          | Función                                |
+| ----------------- | ------------------ | --------------------------------------- |
+| **Cilium**  | `kube-system`    | CNI + reemplazo de kube-proxy           |
+| **MetalLB** | `metallb-system` | LoadBalancer L2 para kind               |
+| **APISIX**  | `ingress-apisix` | Ingress norte-sur, API gateway, plugins |
 
 ### Roadmap
 
 #### Ingress y Service Mesh
 
-| Componente | Función |
-|------------|---------|
+| Componente      | Función                                                                         |
+| --------------- | -------------------------------------------------------------------------------- |
 | **Istio** | Service mesh este-oeste + Ingress Gateway norte-sur + multicluster entre dev/pro |
 
 #### Observabilidad
 
-| Componente | Función |
-|------------|---------|
-| **Prometheus** | Métricas del cluster y aplicaciones |
-| **Grafana** | Dashboards y visualización |
-| **Elasticsearch** | Almacenamiento y búsqueda de logs |
-| **Fluent Bit** | Recolección y envío de logs |
+| Componente              | Función                             |
+| ----------------------- | ------------------------------------ |
+| **Prometheus**    | Métricas del cluster y aplicaciones |
+| **Grafana**       | Dashboards y visualización          |
+| **Elasticsearch** | Almacenamiento y búsqueda de logs   |
+| **Fluent Bit**    | Recolección y envío de logs        |
 
 #### Escalado
 
-| Componente | Función |
-|------------|---------|
+| Componente     | Función                                                  |
+| -------------- | --------------------------------------------------------- |
 | **KEDA** | Autoscaling basado en eventos (colas, métricas externas) |
 
 #### GitOps
 
-| Componente | Función |
-|------------|---------|
-| **ArgoCD** | CD declarativo, sincronización con git |
-| **Kargo** | Promoción progresiva entre entornos (dev → pro) |
+| Componente       | Función                                          |
+| ---------------- | ------------------------------------------------- |
+| **ArgoCD** | CD declarativo, sincronización con git           |
+| **Kargo**  | Promoción progresiva entre entornos (dev → pro) |
 
 #### Seguridad
 
-| Componente | Función |
-|------------|---------|
-| **Falco** | Detección de amenazas en runtime (syscalls) |
-| **Kyverno** | Políticas de admisión, validación y mutación |
-| **Vault** | Gestión centralizada de secretos |
-| **Vault Secrets Operator** | Sincronización de secretos Vault → Kubernetes |
+| Componente                       | Función                                         |
+| -------------------------------- | ------------------------------------------------ |
+| **Falco**                  | Detección de amenazas en runtime (syscalls)     |
+| **Kyverno**                | Políticas de admisión, validación y mutación |
+| **Vault**                  | Gestión centralizada de secretos                |
+| **Vault Secrets Operator** | Sincronización de secretos Vault → Kubernetes  |
 
 ---
 
@@ -199,12 +199,12 @@ curl -H "Host: httpbin.local" http://${EXTERNAL_IP}/get
 
 ## Namespaces y aislamiento de Istio
 
-| Namespace | Componente | Istio sidecar |
-|-----------|------------|---------------|
-| `ingress-apisix` | APISIX gateway | `disabled` |
-| `demo-apis` | Apps de demo (httpbin, otel...) | `disabled` (hasta instalar Istio) |
-| `istio-system` | Control plane Istio (futuro) | — |
-| `istio-ingress` | Ingress Gateway Istio (futuro) | — |
+| Namespace          | Componente                      | Istio sidecar                       |
+| ------------------ | ------------------------------- | ----------------------------------- |
+| `ingress-apisix` | APISIX gateway                  | `disabled`                        |
+| `demo-apis`      | Apps de demo (httpbin, otel...) | `disabled` (hasta instalar Istio) |
+| `istio-system`   | Control plane Istio (futuro)    | —                                  |
+| `istio-ingress`  | Ingress Gateway Istio (futuro)  | —                                  |
 
 ---
 
@@ -246,6 +246,7 @@ curl http://localhost:9093   # worker 1 pro, puerto 80
 ## Falco (labs CKS)
 
 Los nodos tienen montados los recursos necesarios para Falco:
+
 - `/var/run/docker.sock` — runtime Docker
 - `/sys/kernel/security` — AppArmor
 - `/dev` — acceso a dispositivos del kernel
