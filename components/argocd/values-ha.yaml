@@ -1,3 +1,7 @@
+# values-ha.yaml
+# ArgoCD values para entorno HA (producción/EKS)
+# Referencia - no usar en kind local
+
 redis-ha:
   enabled: true
 
