@@ -1,36 +1,52 @@
 # Kind Clusters: dev / pro
 
-Dos clusters kind locales para desarrollo y labs de seguridad (CKS).
+Plataforma de laboratorio con dos clusters kind locales para desarrollo, labs de seguridad (CKS/CKAD) e integración de herramientas cloud-native. El proyecto está en evolución continua.
 
-**Stack:** Cilium (CNI + kube-proxy replacement) · MetalLB (LoadBalancer L2) · preparado para Istio multicluster
+**Stack actual:** Cilium · MetalLB · APISIX
 
 ---
 
 ## Arquitectura
 
 ```
-┌─────────────────────────────┐   ┌─────────────────────────────┐
-│        dev-cluster          │   │        pro-cluster          │
-│  API: localhost:6450        │   │  API: localhost:6451        │
-│  Pods:  10.10.0.0/16       │   │  Pods:  10.30.0.0/16       │
-│  Svcs:  10.20.0.0/16       │   │  Svcs:  10.40.0.0/16       │
-│  MetalLB: 172.18.0.120-130 │   │  MetalLB: 172.18.0.131-140 │
-│  1 control-plane + 3 workers│   │  1 control-plane + 3 workers│
-└─────────────────────────────┘   └─────────────────────────────┘
+                        ┌── MetalLB L2 ──────────────────────────────┐
+                        │  dev: 172.18.0.120–130                     │
+                        │  pro: 172.18.0.131–140                     │
+                        └────────────────────────────────────────────┘
+                                         │
+              ┌──────────────────────────┼──────────────────────────┐
+              │                          │                          │
+   ┌──────────▼──────────┐              │             ┌────────────▼────────┐
+   │     dev-cluster     │              │             │     pro-cluster     │
+   │  API: :6450         │              │             │  API: :6451         │
+   │  Pods: 10.10.0.0/16 │              │             │  Pods: 10.30.0.0/16 │
+   │  Svcs: 10.20.0.0/16 │◄── Istio ───►             │  Svcs: 10.40.0.0/16 │
+   │                     │  East-West   │             │                     │
+   │  ┌───────────────┐  │  (futuro)    │             │  ┌───────────────┐  │
+   │  │ APISIX        │  │              │             │  │ APISIX        │  │
+   │  │ norte-sur     │  │              │             │  │ norte-sur     │  │
+   │  └───────────────┘  │              │             │  └───────────────┘  │
+   │  ┌───────────────┐  │              │             │  ┌───────────────┐  │
+   │  │ Istio Gateway │  │              │             │  │ Istio Gateway │  │
+   │  │ (futuro)      │  │              │             │  │ (futuro)      │  │
+   │  └───────────────┘  │              │             │  └───────────────┘  │
+   └─────────────────────┘              │             └─────────────────────┘
 ```
 
 ---
 
-## CIDRs y Puertos
+## Redes y Puertos
 
-### Redes
+### CIDRs
 
 | Cluster | API Port | Pod CIDR     | Svc CIDR     | MetalLB Pool     |
 |---------|----------|--------------|--------------|------------------|
 | dev     | 6450     | 10.10.0.0/16 | 10.20.0.0/16 | 172.18.0.120–130 |
 | pro     | 6451     | 10.30.0.0/16 | 10.40.0.0/16 | 172.18.0.131–140 |
 
-### hostPorts (fallback NodePort, activos cuando MetalLB no es accesible)
+Los CIDRs están intencionalmente separados — requisito para Istio multicluster.
+
+### hostPorts (fallback NodePort cuando MetalLB no es accesible)
 
 | Worker | :80 dev | :80 pro | :443 dev | :443 pro | :2222 dev | :2222 pro |
 |--------|---------|---------|----------|----------|-----------|-----------|
@@ -42,10 +58,60 @@ Dos clusters kind locales para desarrollo y labs de seguridad (CKS).
 
 ---
 
+## Componentes
+
+### Implementado
+
+| Componente | Namespace | Función |
+|------------|-----------|---------|
+| **Cilium** | `kube-system` | CNI + reemplazo de kube-proxy |
+| **MetalLB** | `metallb-system` | LoadBalancer L2 para kind |
+| **APISIX** | `ingress-apisix` | Ingress norte-sur, API gateway, plugins |
+
+### Roadmap
+
+#### Ingress y Service Mesh
+
+| Componente | Función |
+|------------|---------|
+| **Istio** | Service mesh este-oeste + Ingress Gateway norte-sur + multicluster entre dev/pro |
+
+#### Observabilidad
+
+| Componente | Función |
+|------------|---------|
+| **Prometheus** | Métricas del cluster y aplicaciones |
+| **Grafana** | Dashboards y visualización |
+| **Elasticsearch** | Almacenamiento y búsqueda de logs |
+| **Fluent Bit** | Recolección y envío de logs |
+
+#### Escalado
+
+| Componente | Función |
+|------------|---------|
+| **KEDA** | Autoscaling basado en eventos (colas, métricas externas) |
+
+#### GitOps
+
+| Componente | Función |
+|------------|---------|
+| **ArgoCD** | CD declarativo, sincronización con git |
+| **Kargo** | Promoción progresiva entre entornos (dev → pro) |
+
+#### Seguridad
+
+| Componente | Función |
+|------------|---------|
+| **Falco** | Detección de amenazas en runtime (syscalls) |
+| **Kyverno** | Políticas de admisión, validación y mutación |
+| **Vault** | Gestión centralizada de secretos |
+| **Vault Secrets Operator** | Sincronización de secretos Vault → Kubernetes |
+
+---
+
 ## Prerequisitos
 
 ```bash
-# Verificar herramientas necesarias
 docker --version       # Docker Engine corriendo
 kind version           # >= 0.20
 kubectl version --client
@@ -55,49 +121,51 @@ helm version           # >= 3.x
 
 ---
 
-## Uso
+## Instalación
 
 ### 1. Crear los clusters
 
 ```bash
-# Ambos clusters
-./scripts/create-clusters.sh
-
-# Solo uno
-./scripts/create-clusters.sh dev
-./scripts/create-clusters.sh pro
+./scripts/create-clusters.sh        # ambos
+./scripts/create-clusters.sh dev    # solo dev
+./scripts/create-clusters.sh pro    # solo pro
 ```
 
 ### 2. Instalar Cilium + MetalLB
-
-Ejecutar por separado para cada cluster:
 
 ```bash
 ./scripts/install-cni-metallb.sh dev
 ./scripts/install-cni-metallb.sh pro
 ```
 
-Este script:
-- Instala Cilium CLI si no existe
-- Instala Cilium (reemplaza kube-proxy)
-- Instala MetalLB via Helm
-- Aplica el pool de IPs correspondiente
+Instala Cilium CLI si no existe, Cilium (reemplaza kube-proxy), MetalLB via Helm y aplica el pool de IPs del cluster.
 
-### 3. Verificar estado
+### 3. Instalar APISIX
 
 ```bash
-./scripts/status.sh
+./scripts/install-apisix.sh dev
+./scripts/install-apisix.sh pro
 ```
 
-### 4. Eliminar clusters
+Crea el namespace `ingress-apisix` (con `istio-injection: disabled`), instala APISIX via Helm y espera a que MetalLB asigne la IP externa.
+
+**Demo httpbin con rate limiting:**
 
 ```bash
-# Ambos clusters
-./scripts/delete-clusters.sh
+kubectl apply -f components/ingress/apisix/crds/httpbin/
 
-# Solo uno
+EXTERNAL_IP=$(kubectl get svc apisix-gateway -n ingress-apisix \
+  -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+
+curl -H "Host: httpbin.local" http://${EXTERNAL_IP}/get
+```
+
+### 4. Estado y limpieza
+
+```bash
+./scripts/status.sh             # nodos, Cilium, MetalLB, LoadBalancers
+./scripts/delete-clusters.sh    # ambos clusters
 ./scripts/delete-clusters.sh dev
-./scripts/delete-clusters.sh pro
 ```
 
 ---
@@ -107,90 +175,80 @@ Este script:
 ```
 .
 ├── dev/kind/
-│   ├── dev-cluster.yaml        # Configuración kind del cluster dev
-│   └── metallb-ippool.yaml     # Pool de IPs MetalLB para dev
+│   ├── dev-cluster.yaml            # Configuración kind del cluster dev
+│   └── metallb-ippool.yaml         # Pool de IPs MetalLB dev (172.18.0.120–130)
 ├── pro/kind/
-│   ├── pro-cluster.yaml        # Configuración kind del cluster pro
-│   └── metallb-ippool.yaml     # Pool de IPs MetalLB para pro
+│   ├── pro-cluster.yaml            # Configuración kind del cluster pro
+│   └── metallb-ippool.yaml         # Pool de IPs MetalLB pro (172.18.0.131–140)
 ├── scripts/
-│   ├── create-clusters.sh      # Crea clusters (verifica Docker y puertos)
-│   ├── install-cni-metallb.sh  # Instala Cilium + MetalLB
-│   ├── delete-clusters.sh      # Elimina clusters y limpia kubeconfig
-│   └── status.sh               # Estado de nodos, CNI, LB e IPs
+│   ├── create-clusters.sh          # Crea clusters (verifica Docker y puertos)
+│   ├── install-cni-metallb.sh      # Instala Cilium + MetalLB
+│   ├── install-apisix.sh           # Instala APISIX ingress controller
+│   ├── delete-clusters.sh          # Elimina clusters y limpia kubeconfig
+│   └── status.sh                   # Estado de nodos, CNI, LB e IPs
 ├── components/
-│   ├── argocd/                 # Valores Helm de ArgoCD
-│   └── apisix/                 # Chart de APISIX
-└── docs/plans/                 # Documentos de diseño e implementación
+│   ├── apisix/
+│   │   └── apisix-values/          # Valores Helm para APISIX
+│   ├── ingress/
+│   │   └── apisix/crds/            # ApisixRoute, ApisixUpstream (httpbin demo)
+│   └── argocd/                     # (pendiente) Valores Helm para ArgoCD
+└── docs/plans/                     # Documentos de diseño e implementación
 ```
+
+---
+
+## Namespaces y aislamiento de Istio
+
+| Namespace | Componente | Istio sidecar |
+|-----------|------------|---------------|
+| `ingress-apisix` | APISIX gateway | `disabled` |
+| `demo-apis` | Apps de demo (httpbin, otel...) | `disabled` (hasta instalar Istio) |
+| `istio-system` | Control plane Istio (futuro) | — |
+| `istio-ingress` | Ingress Gateway Istio (futuro) | — |
 
 ---
 
 ## Troubleshooting
 
-### MetalLB no asigna IPs (EXTERNAL-IP en `<pending>`)
-
-Verificar que el pool de IPs está en el rango correcto de la red Docker:
+### MetalLB no asigna IPs (`EXTERNAL-IP` en `<pending>`)
 
 ```bash
 # Ver la subred del bridge kind
 docker network inspect kind | grep -A5 "IPAM"
 
 # Si la subred no es 172.18.x.x, actualizar metallb-ippool.yaml con el rango correcto
-# y reaplicar:
-kubectl apply -f dev/kind/metallb-ippool.yaml  # o pro/
+kubectl apply -f dev/kind/metallb-ippool.yaml   # o pro/
 ```
 
-### Cilium no arranca (pods en CrashLoopBackOff)
+### Cilium no arranca (CrashLoopBackOff)
 
 ```bash
-# Ver logs del pod
 kubectl logs -n kube-system -l k8s-app=cilium --previous
-
-# Verificar que el kernel tiene los módulos necesarios
 lsmod | grep -E "ip_tables|xt_"
 ```
 
 ### kind create cluster falla por puertos en uso
 
 ```bash
-# Ver qué proceso usa el puerto
 ss -tlnp | grep :6450
-
-# Ver si el cluster ya existe
 kind get clusters
 ```
 
-### Acceso desde host cuando MetalLB no funciona
-
-Usar los hostPorts de fallback mapeados directamente al nodo:
+### Acceso desde host sin MetalLB
 
 ```bash
-curl http://localhost:9090   # worker 1 del dev-cluster, puerto 80
-curl http://localhost:9093   # worker 1 del pro-cluster, puerto 80
+curl http://localhost:9090   # worker 1 dev, puerto 80
+curl http://localhost:9093   # worker 1 pro, puerto 80
 ```
-
----
-
-## Notas: Istio Multicluster (futuro)
-
-Los CIDRs están intencionalmente separados entre clusters:
-- dev: pods `10.10.0.0/16`, services `10.20.0.0/16`
-- pro: pods `10.30.0.0/16`, services `10.40.0.0/16`
-
-Esta separación es un prerequisito para configurar Istio multicluster con malla de servicios entre ambos clusters. No hay implementación de Istio en este repositorio actualmente.
-
-Para implementarlo en el futuro, consultar la documentación oficial de Istio multicluster con primary-remote o multi-primary topology.
 
 ---
 
 ## Falco (labs CKS)
 
-Los nodos tienen los mounts necesarios para Falco:
-- `/var/run/docker.sock` — Falco con Docker runtime
-- `/sys/kernel/security` — Falco + AppArmor
+Los nodos tienen montados los recursos necesarios para Falco:
+- `/var/run/docker.sock` — runtime Docker
+- `/sys/kernel/security` — AppArmor
 - `/dev` — acceso a dispositivos del kernel
-
-Falco no está instalado por defecto. Instalarlo con Helm cuando se necesite para los labs:
 
 ```bash
 helm repo add falcosecurity https://falcosecurity.github.io/charts
