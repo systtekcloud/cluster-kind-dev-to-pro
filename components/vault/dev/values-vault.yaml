@@ -1,0 +1,33 @@
+# values-vault.yaml — dev (kind)
+# Modo: standalone, sin HA, recursos mínimos
+
+server:
+  ha:
+    enabled: false
+
+  dataStorage:
+    enabled: true
+    size: 1Gi
+    storageClass: standard   # storage class por defecto en kind
+    accessMode: ReadWriteOnce
+
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 100m
+    limits:
+      memory: 256Mi
+      cpu: 250m
+
+  service:
+    enabled: true
+    type: ClusterIP
+
+  extraEnvironmentVars:
+    VAULT_LOG_LEVEL: "debug"
+
+injector:
+  enabled: false
+
+ui:
+  enabled: true

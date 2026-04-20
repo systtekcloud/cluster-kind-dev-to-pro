@@ -1,0 +1,58 @@
+# values-vault.yaml — pro (kind)
+# Modo: HA con Raft integrado (3 pods, quorum, sin dependencias externas)
+
+server:
+  ha:
+    enabled: true
+    replicas: 3
+    raft:
+      enabled: true
+      setNodeId: true   # cada pod usa su nombre como node ID (vault-0, vault-1, vault-2)
+
+  dataStorage:
+    enabled: true
+    size: 5Gi
+    storageClass: standard   # storage class por defecto en kind
+    accessMode: ReadWriteOnce
+
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+
+  # Override del readiness probe para aceptar estado sellado.
+  # Sin esto, helm --wait hace timeout porque los pods HA arrancan sellados (exit 2).
+  # Exit 0 = activo/standby, exit 2 = sellado → ambos son "running", no un error.
+  readinessProbe:
+    enabled: true
+    exec:
+      command:
+        - /bin/sh
+        - -c
+        - vault status -tls-skip-verify; ec=$?; [ $ec -eq 0 ] || [ $ec -eq 2 ]
+
+  # Anti-afinidad estricta: un pod de Vault por nodo worker
+  affinity: |
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: vault
+              component: server
+          topologyKey: kubernetes.io/hostname
+
+  service:
+    enabled: true
+    type: ClusterIP
+
+  extraEnvironmentVars:
+    VAULT_LOG_LEVEL: "info"
+
+injector:
+  enabled: false
+
+ui:
+  enabled: true
