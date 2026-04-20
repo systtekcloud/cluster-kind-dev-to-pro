@@ -1,8 +1,8 @@
 # Kind Clusters: dev / pro
 
-Plataforma de laboratorio con dos clusters kind locales para desarrollo, labs de seguridad (CKS/CKAD) e integración de herramientas cloud-native. El proyecto está en evolución continua.
+Plataforma de laboratorio con dos clusters kind locales para aprender herramientas cloud-native de forma progresiva. El proyecto está en evolución continua.
 
-**Stack actual:** Cilium · MetalLB · APISIX
+**Stack actual:** Cilium · MetalLB · APISIX · ArgoCD · Vault + VSO
 
 ---
 
@@ -62,50 +62,43 @@ Los CIDRs están intencionalmente separados — requisito para Istio multicluste
 
 ### Implementado
 
-| Componente        | Namespace          | Función                                |
-| ----------------- | ------------------ | --------------------------------------- |
-| **Cilium**  | `kube-system`    | CNI + reemplazo de kube-proxy           |
-| **MetalLB** | `metallb-system` | LoadBalancer L2 para kind               |
-| **APISIX**  | `ingress-apisix` | Ingress norte-sur, API gateway, plugins |
+| Componente | Namespace | Función |
+|---|---|---|
+| **Cilium** | `kube-system` | CNI + reemplazo de kube-proxy |
+| **MetalLB** | `metallb-system` | LoadBalancer L2 para kind |
+| **APISIX** | `ingress-apisix` | Ingress norte-sur, API gateway, plugins |
+| **ArgoCD** | `argocd` | CD declarativo — dev: standalone, pro: HA |
+| **Vault** | `vault` | Gestión centralizada de secretos — dev: standalone, pro: HA Raft |
+| **Vault Secrets Operator** | `vault-secrets-operator` | Sincronización Vault → Kubernetes Secrets |
 
 ### Roadmap
 
 #### Ingress y Service Mesh
 
-| Componente      | Función                                                                         |
-| --------------- | -------------------------------------------------------------------------------- |
+| Componente | Función |
+| --- | --- |
 | **Istio** | Service mesh este-oeste + Ingress Gateway norte-sur + multicluster entre dev/pro |
 
 #### Observabilidad
 
-| Componente              | Función                             |
-| ----------------------- | ------------------------------------ |
-| **Prometheus**    | Métricas del cluster y aplicaciones |
-| **Grafana**       | Dashboards y visualización          |
-| **Elasticsearch** | Almacenamiento y búsqueda de logs   |
-| **Fluent Bit**    | Recolección y envío de logs        |
+| Componente | Función |
+| --- | --- |
+| **Prometheus** | Métricas del cluster y aplicaciones |
+| **Grafana** | Dashboards y visualización |
+| **Fluent Bit** | Recolección y envío de logs |
 
-#### Escalado
+#### GitOps avanzado
 
-| Componente     | Función                                                  |
-| -------------- | --------------------------------------------------------- |
-| **KEDA** | Autoscaling basado en eventos (colas, métricas externas) |
-
-#### GitOps
-
-| Componente       | Función                                          |
-| ---------------- | ------------------------------------------------- |
-| **ArgoCD** | CD declarativo, sincronización con git           |
-| **Kargo**  | Promoción progresiva entre entornos (dev → pro) |
+| Componente | Función |
+| --- | --- |
+| **Kargo** | Promoción progresiva entre entornos (dev → pro) |
 
 #### Seguridad
 
-| Componente                       | Función                                         |
-| -------------------------------- | ------------------------------------------------ |
-| **Falco**                  | Detección de amenazas en runtime (syscalls)     |
-| **Kyverno**                | Políticas de admisión, validación y mutación |
-| **Vault**                  | Gestión centralizada de secretos                |
-| **Vault Secrets Operator** | Sincronización de secretos Vault → Kubernetes  |
+| Componente | Función |
+| --- | --- |
+| **Kyverno** | Políticas de admisión, validación y mutación |
+| **Falco** | Detección de amenazas en runtime (syscalls) |
 
 ---
 
@@ -116,7 +109,7 @@ docker --version       # Docker Engine corriendo
 kind version           # >= 0.20
 kubectl version --client
 helm version           # >= 3.x
-# cilium CLI se instala automáticamente con install-cni-metallb.sh si no existe
+# cilium CLI se instala automáticamente con 02-install-cni-metallb.sh si no existe
 ```
 
 ---
@@ -126,28 +119,23 @@ helm version           # >= 3.x
 ### 1. Crear los clusters
 
 ```bash
-./scripts/create-clusters.sh        # ambos
-./scripts/create-clusters.sh dev    # solo dev
-./scripts/create-clusters.sh pro    # solo pro
+./scripts/01-create-clusters.sh dev
+./scripts/01-create-clusters.sh pro
 ```
 
 ### 2. Instalar Cilium + MetalLB
 
 ```bash
-./scripts/install-cni-metallb.sh dev
-./scripts/install-cni-metallb.sh pro
+./scripts/02-install-cni-metallb.sh dev
+./scripts/02-install-cni-metallb.sh pro
 ```
-
-Instala Cilium CLI si no existe, Cilium (reemplaza kube-proxy), MetalLB via Helm y aplica el pool de IPs del cluster.
 
 ### 3. Instalar APISIX
 
 ```bash
-./scripts/install-apisix.sh dev
-./scripts/install-apisix.sh pro
+./scripts/03-install-apisix.sh dev
+./scripts/03-install-apisix.sh pro
 ```
-
-Crea el namespace `ingress-apisix` (con `istio-injection: disabled`), instala APISIX via Helm y espera a que MetalLB asigne la IP externa.
 
 **Demo httpbin con rate limiting:**
 
@@ -160,12 +148,44 @@ EXTERNAL_IP=$(kubectl get svc apisix-gateway -n ingress-apisix \
 curl -H "Host: httpbin.local" http://${EXTERNAL_IP}/get
 ```
 
-### 4. Estado y limpieza
+### 4. Instalar ArgoCD
 
 ```bash
-./scripts/status.sh             # nodos, Cilium, MetalLB, LoadBalancers
-./scripts/delete-clusters.sh    # ambos clusters
-./scripts/delete-clusters.sh dev
+./scripts/04-install-argocd.sh dev
+./scripts/04-install-argocd.sh pro
+```
+
+### 5. Instalar Vault + VSO
+
+```bash
+./scripts/05-install-vault.sh dev
+# Después del script: init y unseal manual
+kubectl exec -n vault vault-0 -- vault operator init
+kubectl exec -n vault vault-0 -- vault operator unseal <unseal-key>
+# Configurar Vault y sembrar secrets
+./scripts/05-seed-vault.sh dev
+```
+
+### 6. Aplicar App of Apps (ArgoCD gestiona el resto)
+
+```bash
+kubectl apply -f argo-manifests/kind/argo-apps-kind.yml --context kind-dev-cluster
+```
+
+---
+
+## Orden de operaciones
+
+Los scripts instalan la infraestructura base. ArgoCD toma el control a partir del paso 6.
+
+**Vault, VSO y APISIX no los gestiona ArgoCD** — son prerequisitos que deben estar listos antes de aplicar el App of Apps. Los secrets de Vault deben estar sembrados antes de que ArgoCD sincronice Keycloak (wave 4 necesita los Kubernetes Secrets creados por VSO en wave 3).
+
+```
+scripts 01→05 → init+unseal vault → seed-vault → argo-apps-kind.yml
+                                                         │
+                                     ArgoCD Wave 1: operators (kyverno, mongodb, crossplane)
+                                     ArgoCD Wave 3: keycloak-secrets (VSO), prometheus
+                                     ArgoCD Wave 4: keycloak, grafana, kargo
 ```
 
 ---
@@ -176,55 +196,57 @@ curl -H "Host: httpbin.local" http://${EXTERNAL_IP}/get
 .
 ├── env/
 │   ├── dev/
-│   │   ├── dev-cluster.yaml        # Configuración kind del cluster dev
-│   │   └── metallb-ippool.yaml     # Pool MetalLB dev (172.18.0.120–130)
+│   │   ├── dev-cluster.yaml
+│   │   └── metallb-ippool.yaml
 │   └── pro/
-│       ├── pro-cluster.yaml        # Configuración kind del cluster pro
-│       └── metallb-ippool.yaml     # Pool MetalLB pro (172.18.0.131–140)
+│       ├── pro-cluster.yaml
+│       └── metallb-ippool.yaml
 │
 ├── scripts/
-│   ├── create-clusters.sh          # Crea clusters (verifica Docker y puertos)
-│   ├── install-cni-metallb.sh      # Instala Cilium + MetalLB
-│   ├── install-apisix.sh           # Instala APISIX ingress controller
-│   ├── delete-clusters.sh          # Elimina clusters y limpia kubeconfig
-│   └── status.sh                   # Estado de nodos, CNI, LB e IPs
+│   ├── 00-status.sh
+│   ├── 01-create-clusters.sh
+│   ├── 02-install-cni-metallb.sh
+│   ├── 03-install-apisix.sh
+│   ├── 04-install-argocd.sh
+│   ├── 05-install-vault.sh
+│   ├── 05-seed-vault.sh
+│   └── 99-delete-clusters.sh
 │
 ├── components/
-│   ├── apisix/
-│   │   ├── apisix-values/          # Valores Helm APISIX
-│   │   └── apisix-helm-chart/      # Chart local (vendor)
-│   ├── ingress/
-│   │   ├── apisix/
-│   │   │   ├── config/             # apisix-config.yaml (gitignored — contiene claves)
-│   │   │   └── crds/
-│   │   │       ├── httpbin/        # ApisixRoute + ApisixUpstream + Deployment httpbin
-│   │   │       └── lb-external/    # Rutas a servicios externos
-│   │   └── nginx/                  # Manifests nginx ingress (referencia/labs)
-│   ├── apps/
-│   │   ├── curl/                   # Pod curl para pruebas de conectividad
-│   │   ├── httpbin/                # httpbin + fortio (carga y latencia)
-│   │   └── sleep/                  # Pod sleep para pruebas de malla
-│   ├── argocd/                     # Valores Helm ArgoCD
-│   └── keycloak-k8s-oidc/          # Lab autenticación: Keycloak + OIDC + Prometheus
-│       ├── keycloak-helm/
-│       ├── prometheus-helm/
-│       └── postman/                # Colección Postman para flujos OIDC
+│   ├── ingress/apisix/
+│   │   ├── config/             # apisix-config.yaml (gitignored)
+│   │   └── crds/httpbin/       # ApisixRoute + ApisixUpstream + Deployment
+│   ├── argocd/
+│   │   ├── dev/values-local.yaml
+│   │   └── pro/values-ha.yaml
+│   ├── vault/
+│   │   ├── dev/                # values-vault.yaml, values-vso.yaml
+│   │   ├── pro/                # values-vault.yaml (HA Raft), values-vso.yaml
+│   │   └── setup/              # policy-keycloak.hcl, seed-secrets.sh
+│   └── apps/
+│       ├── curl/
+│       ├── httpbin/
+│       └── sleep/
 │
-└── docs/
-    ├── plans/                      # Documentos de diseño e implementación
-    └── references/                 # Charts y documentación de referencia
+├── docs/
+│   ├── COMPONENTS.md
+│   ├── LABS.md
+│   ├── vault/
+│   └── velero/
+│
+└── secrets/                    # gitignored — vault-init-dev.txt, vault-init-pro.txt
 ```
 
 ---
 
 ## Namespaces y aislamiento de Istio
 
-| Namespace          | Componente                      | Istio sidecar                       |
-| ------------------ | ------------------------------- | ----------------------------------- |
-| `ingress-apisix` | APISIX gateway                  | `disabled`                        |
-| `demo-apis`      | Apps de demo (httpbin, otel...) | `disabled` (hasta instalar Istio) |
-| `istio-system`   | Control plane Istio (futuro)    | —                                  |
-| `istio-ingress`  | Ingress Gateway Istio (futuro)  | —                                  |
+| Namespace | Componente | Istio sidecar |
+| --- | --- | --- |
+| `ingress-apisix` | APISIX gateway | `disabled` |
+| `demo-apis` | Apps de demo (httpbin...) | `disabled` (hasta instalar Istio) |
+| `istio-system` | Control plane Istio (futuro) | — |
+| `istio-ingress` | Ingress Gateway Istio (futuro) | — |
 
 ---
 
@@ -237,7 +259,7 @@ curl -H "Host: httpbin.local" http://${EXTERNAL_IP}/get
 docker network inspect kind | grep -A5 "IPAM"
 
 # Si la subred no es 172.18.x.x, actualizar metallb-ippool.yaml con el rango correcto
-kubectl apply -f dev/kind/metallb-ippool.yaml   # o pro/
+kubectl apply -f env/dev/metallb-ippool.yaml   # o env/pro/
 ```
 
 ### Cilium no arranca (CrashLoopBackOff)
@@ -259,19 +281,4 @@ kind get clusters
 ```bash
 curl http://localhost:9090   # worker 1 dev, puerto 80
 curl http://localhost:9093   # worker 1 pro, puerto 80
-```
-
----
-
-## Falco (labs CKS)
-
-Los nodos tienen montados los recursos necesarios para Falco:
-
-- `/var/run/docker.sock` — runtime Docker
-- `/sys/kernel/security` — AppArmor
-- `/dev` — acceso a dispositivos del kernel
-
-```bash
-helm repo add falcosecurity https://falcosecurity.github.io/charts
-helm install falco falcosecurity/falco -n falco --create-namespace
 ```
