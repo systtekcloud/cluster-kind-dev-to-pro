@@ -19,6 +19,15 @@ server:
       memory: 256Mi
       cpu: 250m
 
+  # Igual que en pro: acepta exit 2 (sellado) para que helm --wait no haga timeout
+  readinessProbe:
+    enabled: true
+    exec:
+      command:
+        - /bin/sh
+        - -c
+        - vault status -tls-skip-verify; ec=$?; [ $ec -eq 0 ] || [ $ec -eq 2 ]
+
   service:
     enabled: true
     type: ClusterIP
@@ -27,7 +36,7 @@ server:
     VAULT_LOG_LEVEL: "debug"
 
 injector:
-  enabled: false
+  enabled: true
 
 ui:
   enabled: true

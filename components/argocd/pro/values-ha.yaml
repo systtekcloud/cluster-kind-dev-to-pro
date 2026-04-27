@@ -1,0 +1,101 @@
+# values-ha.yaml
+# ArgoCD values para entorno HA (producción/EKS)
+# Referencia - no usar en kind local
+
+configs:
+  cmp:
+    create: true
+    plugins:
+      argocd-vault-plugin:
+        allowConcurrency: true
+        discover:
+          find:
+            command: [find, ".", -name, "*.yaml"]
+        generate:
+          command: [argocd-vault-plugin, generate, "."]
+        lockRepo: false
+
+redis-ha:
+  enabled: true
+
+controller:
+  replicas: 1
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      namespace: argo
+      additionalLabels:
+        release: prometheus-stack
+
+server:
+  replicas: 2
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      namespace: argo
+      additionalLabels:
+        release: prometheus-stack
+
+repoServer:
+  replicas: 2
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      namespace: argo
+      additionalLabels:
+        release: prometheus-stack
+
+  initContainers:
+    - name: download-avp
+      image: alpine:3.20
+      command: [sh, -c]
+      args:
+        - wget -O /custom-tools/argocd-vault-plugin
+            https://github.com/argoproj-labs/argocd-vault-plugin/releases/download/v1.18.1/argocd-vault-plugin_1.18.1_linux_amd64
+            && chmod +x /custom-tools/argocd-vault-plugin
+      volumeMounts:
+        - mountPath: /custom-tools
+          name: custom-tools
+
+  extraContainers:
+    - name: avp
+      command: [/var/run/argocd/argocd-cmp-server]
+      image: quay.io/argoproj/argocd:v3.3.8
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+      env:
+        - name: VAULT_ADDR
+          value: http://vault.vault.svc.cluster.local:8200
+        - name: AVP_TYPE
+          value: vault
+        - name: AVP_AUTH_TYPE
+          value: k8s
+        - name: AVP_K8S_ROLE
+          value: argocd
+      volumeMounts:
+        - mountPath: /var/run/argocd
+          name: var-files
+        - mountPath: /home/argocd/cmp-server/plugins
+          name: plugins
+        - mountPath: /tmp
+          name: tmp
+        - mountPath: /home/argocd/cmp-server/config/plugin.yaml
+          subPath: argocd-vault-plugin.yaml
+          name: cmp-plugin
+        - mountPath: /usr/local/bin/argocd-vault-plugin
+          name: custom-tools
+          subPath: argocd-vault-plugin
+
+  volumes:
+    - name: custom-tools
+      emptyDir: {}
+    - name: cmp-plugin
+      configMap:
+        name: argocd-cmp-cm
+
+applicationSet:
+  replicas: 2

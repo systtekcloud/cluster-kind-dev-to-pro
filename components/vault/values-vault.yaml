@@ -1,0 +1,124 @@
+# Vault - override de producción
+# Modo: HA con Raft integrado (3 pods, quorum, sin dependencias externas)
+# Uso: helm upgrade --install pan-platform charts/pan-platform -f helm-values/prod/platform/vault-values.yaml
+
+vault:
+  enabled: true
+  server:
+    ha:
+      enabled: true
+      replicas: 3
+      raft:
+        enabled: true
+        # Cada pod usa su nombre como node ID de Raft (vault-0, vault-1, vault-2)
+        setNodeId: true
+
+    dataStorage:
+      enabled: true
+      size: 5Gi
+      storageClass: standard # Kind default storage class
+      accessMode: ReadWriteOnce
+
+    resources:
+      requests:
+        memory: 256Mi
+        cpu: 250m
+      limits:
+        memory: 256Mi
+        cpu: 250m
+
+    # Anti-afinidad estricta: un pod de Vault por nodo, obligatorio
+    affinity: |
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: vault
+                component: server
+            topologyKey: kubernetes.io/hostname
+
+    service:
+      enabled: true
+      type: ClusterIP
+
+  # Las apps consumen secretos directamente via SDK propio, el injector no es necesario
+  injector:
+    enabled: true
+
+  ui:
+    enabled: true
+  
+  extraEnvironmentVars:
+    VAULT_LOG_LEVEL: "debug"
+
+# ===========================================================================
+# Vault Secrets Operator resources (umbrella chart: pan-platform)
+# These create the VaultAuth + VaultStaticSecret CRs that VSO uses to
+# sync secrets from Vault into K8s Secrets for MongoDB and Velero
+# ===========================================================================
+# vaultResources:
+#   enabled: true
+#   defaultNamespace: "cloudframe-platform"
+
+#   connections:
+#     - name: vault-connection
+#       address: "http://cloudframe-platform-vault.cloudframe-platform.svc.cluster.loca\
+#         l:8200"
+
+#   serviceAccounts:
+#     - name: mongodb-database
+
+#   auths:
+#     - name: mongodb-auth
+#       vaultConnectionRef: vault-connection
+#       method: kubernetes
+#       mount: kubernetes
+#       kubernetes:
+#         role: mongodb
+#         serviceAccount: mongodb-database
+
+#     - name: velero-auth
+#       vaultConnectionRef: vault-connection
+#       method: kubernetes
+#       mount: kubernetes
+#       kubernetes:
+#         role: cloudframe-velero-server
+#         serviceAccount: cloudframe-velero-server
+
+#   staticSecrets:
+#     # Admin root password
+#     - name: mongodb-admin-vault
+#       vaultAuthRef: mongodb-auth
+#       mount: secret
+#       type: kv-v2
+#       path: pro/mongodb/users/admin # Vault KV: { username: "root", password: "xxx" }
+#       destination:
+#         create: true
+#         name: mongodb-admin-credentials # Must match mongodb.adminCredentials.secretName
+
+#     # trustos-user credentials
+#     - name: mongodb-trustos-user-vault
+#       vaultAuthRef: mongodb-auth
+#       mount: secret
+#       type: kv-v2
+#       path: pro/mongodb/users/trustos-user
+#       destination:
+#         create: true
+#         name: mongodb-trustos-user-credentials # Must match pattern: mongodb-<username>-credentials
+
+#     # Velero BSL (BackupStorageLocation) AWS credentials — synced into openshift-adp namespace
+#     - name: velero-bsl-credentials
+#       vaultAuthRef: velero-auth
+#       mount: secret
+#       type: kv-v2
+#       path: pro/velero/aws
+#       refreshAfter: 1m
+#       destination:
+#         create: true
+#         name: velero-bsl-credentials
+#         transformation:
+#           templates:
+#             cloud: |
+#               [default]
+#               aws_access_key_id={{ get .Secrets "access_key_id" }}
+#               aws_secret_access_key={{ get .Secrets "secret_access_key" }}

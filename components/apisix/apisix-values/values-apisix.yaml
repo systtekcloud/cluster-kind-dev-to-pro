@@ -31,7 +31,8 @@ apisix:
         - 0.0.0.0/0
     ingress:
       enabled: false
-
+  ssl:
+    enabled: true
   prometheus:
     enabled: true
 

@@ -14,11 +14,11 @@ fi
 case "$TARGET" in
   dev)
     CLUSTER_NAME="dev-cluster"
-    VALUES_FILE="$ROOT_DIR/components/argocd/values-local.yaml"
+    VALUES_FILE="$ROOT_DIR/components/argocd/dev/values-local.yaml"
     ;;
   pro)
     CLUSTER_NAME="pro-cluster"
-    VALUES_FILE="$ROOT_DIR/components/argocd/values-ha.yaml"
+    VALUES_FILE="$ROOT_DIR/components/argocd/pro/values-ha.yaml"
     ;;
   *)
     echo "ERROR: Target debe ser 'dev' o 'pro', recibido: '$TARGET'"
@@ -27,7 +27,7 @@ case "$TARGET" in
 esac
 
 CONTEXT="kind-${CLUSTER_NAME}"
-NAMESPACE="argocd"
+NAMESPACE="argo"
 
 # Verificar que el cluster existe
 if ! kind get clusters 2>/dev/null | grep -q "^${CLUSTER_NAME}$"; then
@@ -60,26 +60,27 @@ helm upgrade --install argocd argo/argo-cd \
   --wait \
   --timeout 5m
 
-# ─── Verificación MetalLB ─────────────────────────────────────────────────────
+# ─── Verificación APISIX ──────────────────────────────────────────────────────
 
-echo ">>> Esperando a que MetalLB asigne EXTERNAL-IP al LoadBalancer de ArgoCD..."
+echo ">>> Obteniendo EXTERNAL-IP del gateway APISIX..."
 TIMEOUT=120
 ELAPSED=0
 EXTERNAL_IP=""
 
 while [[ -z "$EXTERNAL_IP" && $ELAPSED -lt $TIMEOUT ]]; do
-  EXTERNAL_IP=$(kubectl get svc argocd-server \
-    -n "$NAMESPACE" \
+  EXTERNAL_IP=$(kubectl get svc apisix-gateway \
+    -n ingress-apisix \
     -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)
   if [[ -z "$EXTERNAL_IP" ]]; then
     sleep 5
     ELAPSED=$((ELAPSED + 5))
-    echo "  ... esperando IP ($ELAPSED/${TIMEOUT}s)"
+    echo "  ... esperando IP de APISIX ($ELAPSED/${TIMEOUT}s)"
   fi
 done
 
 if [[ -z "$EXTERNAL_IP" ]]; then
-  echo "ERROR: No se asignó EXTERNAL-IP en ${TIMEOUT}s. Verifica MetalLB con: kubectl get svc -n $NAMESPACE --context $CONTEXT"
+  echo "ERROR: No se encontró EXTERNAL-IP para APISIX en ${TIMEOUT}s."
+  echo "       Verifica APISIX con: kubectl get svc apisix-gateway -n ingress-apisix --context $CONTEXT"
   exit 1
 fi
 
@@ -89,10 +90,13 @@ ADMIN_PASSWORD=$(kubectl -n "$NAMESPACE" get secret argocd-initial-admin-secret 
 echo ""
 echo "OK: ArgoCD instalado en $CLUSTER_NAME"
 echo ""
-echo "  EXTERNAL-IP asignada: $EXTERNAL_IP"
-echo "  URL de acceso:        http://${EXTERNAL_IP}"
+echo "  APISIX EXTERNAL-IP:   $EXTERNAL_IP"
+echo "  URL de acceso:        https://argocd-dev.local.lp"
 echo "  Usuario:              admin"
 echo "  Contraseña inicial:   ${ADMIN_PASSWORD}"
+echo ""
+echo "  Verificación rápida:"
+echo "    curl -k -I --resolve argocd-dev.local.lp:443:${EXTERNAL_IP} https://argocd-dev.local.lp/"
 echo ""
 echo "  Para recuperar la contraseña más tarde:"
 echo "    kubectl -n $NAMESPACE get secret argocd-initial-admin-secret \\"

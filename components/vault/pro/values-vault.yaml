@@ -52,7 +52,7 @@ server:
     VAULT_LOG_LEVEL: "info"
 
 injector:
-  enabled: false
+  enabled: true
 
 ui:
   enabled: true

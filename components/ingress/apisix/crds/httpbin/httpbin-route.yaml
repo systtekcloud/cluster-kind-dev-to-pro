@@ -9,7 +9,7 @@ spec:
     - name: httpbin-main
       match:
         hosts:
-          - httpbin.local
+          - httpbin-dev.local
         paths:
           - "/*"
       backends:

@@ -12,5 +12,5 @@ spec:
     send: 10s
   retries: 3
   passHost: rewrite
-  upstreamHost: httpbin.local
+  upstreamHost: httpbin-dev.local
   # aquí más adelante podemos añadir healthCheck, subsets, etc.

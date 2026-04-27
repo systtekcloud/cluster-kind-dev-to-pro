@@ -62,7 +62,7 @@ kubectl apply -f components/ingress/apisix/crds/httpbin/
 kubectl apply -f argo-manifests/kind/argo-apps-kind.yml --context kind-dev-cluster
 ```
 
-**Repo GitOps:** `https://github.com/systtekcloud/gitops-base-platform.git`
+**Repo GitOps:** `https://gitlab.com/eks-vcluster-platform/gitops-base-platform.git`
 Manifiesto de entrada: `argo-manifests/kind/argo-apps-kind.yml`
 
 ### Lab 04 — Promoción dev → pro con Kargo
@@ -112,7 +112,7 @@ kubectl exec -n vault vault-0 -- vault operator unseal <unseal-key>
 ```bash
 kubectl apply -f gitops/platform/jobs/keycloak-secrets/keycloak-secrets.yaml
 ```
-(repo: `https://github.com/systtekcloud/gitops-base-platform.git`)
+(repo: `https://gitlab.com/eks-vcluster-platform/gitops-base-platform.git`)
 
 **Documentación:** `docs/vault/vault-resources.md`
 
